@@ -17,6 +17,19 @@ REQUIRMENTS
 -----------
 Python 3.4.2 | Anaconda 2.1.0
 
+RUN-TIME INSTRUCTIONS
+---------------------
+
+Run autoscan.py in Python 3.4.2 and enter the file path of the Latin text you wish to analyze.
+
+VERSION
+-------
+
+Current Version: 0.1
+
+Version 0.1:
++ Added scansion program
+
 LICENSE
 -------
 MIT License
