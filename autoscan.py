@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python 
 # -*- coding: utf-8 -*-
 '''
 This program returns the prosimetric scansion of Latin texts.
@@ -19,8 +19,9 @@ Known bugs:
 1) Reduplicated syllables in a single sentence are not scanned seperately
 '''
 
-__author__ = 'Tyler Kirby <joseph.kirby12@ncf.edu>, Bradley Baker <bradley.baker12@ncf.edu'
-__license__ = 'MIT License. See LICENSE.'
+__author__ = 'Tyler Kirby <joseph.kirby12@ncf.edu>, Bradley Baker <bradley.baker12@ncf.edu>'
+__license__ = 'MIT License'
+
 
 ##################
 #Global Variables#
@@ -40,6 +41,7 @@ diphthongs = ['ae', 'au', 'eu', 'ei', 'oe', 'ui', 'uī']
 stops = ['t', 'p', 'd', 'k', 'b']
 liquids = ['r', 'l']
 
+
 ################
 #Pre-Processing#
 ################
@@ -51,6 +53,7 @@ def tokenize(text):
 	:param text: pre-processed text
 	:return: tokenized text
 	'''
+
 	sent = []
 	tmp = []
 	for word in text.split(" "): #splitting the text on spaces, iterate over each word
@@ -62,6 +65,7 @@ def tokenize(text):
 				tmp = []
 	return sent #Text is tokenized
 
+
 def syllabify(text): 
 	'''
 	Divides the word tokens into a list of syllables. Note that a syllable in this instance is defined as a vocalic
@@ -71,6 +75,7 @@ def syllabify(text):
 	:param text: pre-processed text
 	:return: syllabified text
 	'''
+
 	text = tokenize(text)
 	all_syllables = []
 	for sentence in text:
@@ -90,8 +95,7 @@ def syllabify(text):
 					syll_start = cur_letter_in + 1
 				cur_letter_in += 1
 			last_vowel = syll_per_word[-1][-1] #Last vowel of a word
-			cur_letter_in = len(word) - 1 #Modifies general iterator to accomandate consonants after the last syllable
-										  # in a word
+			cur_letter_in = len(word) - 1 #Modifies general iterator to accomandate consonants after the last syllable in a word
 			leftovers = '' #Contains all of the consonants after the last vowel in a word
 			while word[cur_letter_in] != last_vowel:
 				if word[cur_letter_in] != '.':
@@ -102,6 +106,7 @@ def syllabify(text):
 		all_syllables.append(syll_per_sent)
 	return all_syllables
 
+
 def qu_fix(text):
 	'''
 	Ensures that 'qu' is not treated as its own syllable.
@@ -109,6 +114,7 @@ def qu_fix(text):
 	:param text: pre-processed
 	:return: syllabified text with 'qu' counted as a single consonant
 	'''
+
 	text = syllabify(text)
 	for sent in text:
 		for word in sent:
@@ -121,6 +127,7 @@ def qu_fix(text):
 					pass
 	return text
 
+
 def elidable_end(word):
 	'''
 	Checks word ending to see if it is elidable. Elidable endings include:
@@ -131,6 +138,7 @@ def elidable_end(word):
 	:param word: syllabified/'qu' fixed word
 	:return: True if the ending of the word is elidable, otherwise False
 	'''
+
 	if str(word[-1]).endswith('m'):
 		return True
 	elif str(word[-1][-1]) in long_vowels:
@@ -142,6 +150,7 @@ def elidable_end(word):
 	else:
 		return False
 
+
 def elidable_begin(word):
 	'''
 	Checks word beginning to see if it is elidable. Elidable beginnings include:
@@ -152,6 +161,7 @@ def elidable_begin(word):
 	:param word: syllabified/'qu' fixed word
 	:return: True if the beginning of a word is elidable, otherwise False
 	'''
+
 	if str(word[0]).startswith('h'):
 		return True
 	elif str(word[0][0]) in long_vowels:
@@ -163,6 +173,7 @@ def elidable_begin(word):
 	else:
 		return False
 
+
 def elision_fixer(text):
 	'''
 	Elides words by combining the last syllable of a word with the first of the next word if the words elide.
@@ -171,6 +182,7 @@ def elision_fixer(text):
 	:param text: syllabified/'qu'fixed text
 	:return: elided text
 	'''
+
 	syll_text = qu_fix(text)
 	for sent in syll_text:
 		for word in sent:
@@ -185,6 +197,7 @@ def elision_fixer(text):
 				break
 	return syll_text
 
+
 def syllable_condenser(text):
 	'''
 	Reduces the tokenized/syllablfied text to simply a list of syllables in a list of sentences, with elision accounted
@@ -193,6 +206,7 @@ def syllable_condenser(text):
 	:param text: elided text
 	:return: text tokenized only at the sentence and syllable level
 	'''
+
 	text = elision_fixer(text)
 	syllables = []
 	for sent in text:
@@ -201,6 +215,7 @@ def syllable_condenser(text):
 			syllables_sent += word
 		syllables.append(syllables_sent)
 	return syllables
+
 
 ##########
 #Scansion#
@@ -215,6 +230,7 @@ def long_by_nature(syll):
 	:param syll: current syllable
 	:return: True if long by nature
 	'''
+
 	vowel_group = '' #Vowel group used to check for diphthongs
 	for char in syll:
 		if char not in sing_cons:
@@ -225,6 +241,7 @@ def long_by_nature(syll):
 		return True
 	else:
 		pass
+
 
 def long_by_position(syll, sent):
 	'''
@@ -237,6 +254,7 @@ def long_by_position(syll, sent):
 	:param sent: current sentence
 	:return: True if syllable is long by position
 	'''
+
 	try:
 		next_syll = sent[sent.index(syll) + 1]
 		if (next_syll[0] in sing_cons and next_syll[1] in sing_cons) and \
@@ -251,6 +269,7 @@ def long_by_position(syll, sent):
 	except IndexError:
 		pass
 
+
 def scansion(text):
 	'''
 	Scans text. A '-' represents a long syllable while a 'u' represents a short syllable.
@@ -258,6 +277,7 @@ def scansion(text):
 	:param text: condensed syllabified text
 	:return: scansion of text
 	'''
+
 	process_text = syllable_condenser(text)
 	scanned_text = []
 	for sent in process_text:
@@ -267,24 +287,28 @@ def scansion(text):
 				scanned_sent.append('-')
 			else:
 				scanned_sent.append('u')
-		scanned_text.append(scanned_sent)
+		scanned_text.append(''.join(scanned_sent))
 	return scanned_text
+
 
 def main():
 	'''
-	Runs program. Prompts user for a file path to text they wish to scan.
+	Runs program. Prompts user for a file path to text which they wish to scan.
 
 	:return: scansion of chosen text
 	'''
+
 	file_path = input('Enter file path: ')
 	text_open = open(str(file_path), 'r')
 	text = text_open.read()
 	print(scansion(text))
 	text_open.close()
 
+
 ##############
 #Test Prompts#
 ##############
+
 testing = False
 if testing == True:
 	print(clausula_raw(sample_text))
