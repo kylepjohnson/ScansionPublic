@@ -26,6 +26,7 @@ Example:
 ~/test.txt = 'quō usque tandem abūtēre, Catilīna, patientiā nostrā aetatis. quam diū etiam furor iste tuus nōs ēlūdet.'
 
 Input: ~/test.txt
+
 Output: ['-u-u--uuu-uuu-u----u', '-u-u-uu-uu----u']
 
 VERSION
