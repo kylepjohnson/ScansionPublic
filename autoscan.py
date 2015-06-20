@@ -19,6 +19,8 @@ Known bugs:
 1) Reduplicated syllables in a single sentence are not scanned seperately
 """
 
+from cltk.tokenize.sentence import TokenizeSentence
+
 __author__ = 'Tyler Kirby <joseph.kirby12@ncf.edu>, Bradley Baker <bradley.baker12@ncf.edu>'
 __license__ = 'MIT License'
 
@@ -189,28 +191,9 @@ class KirbyScanner:
         return syll_text
 
 
-    def syllable_condenser(self, text):
-        """
-        Reduces the tokenized/syllablfied text to simply a list of syllables in a list of sentences, with elision accounted
-        for. This allows for simplier scansion functions.
+    def syllable_condenser(self, input_text):
+        return self.elision_fixer(input_text)
 
-        :param text: elided text
-        :return: text tokenized only at the sentence and syllable level
-        """
-
-        text = self.elision_fixer(text)
-        syllables = []
-        for sent in text:
-            syllables_sent = []
-            for word in sent:
-                syllables_sent += word
-            syllables.append(syllables_sent)
-        return syllables
-
-
-    ##########
-    #Scansion#
-    ##########
 
     def long_by_nature(self, syll):
         """
@@ -260,11 +243,30 @@ class KirbyScanner:
         except IndexError:
             pass
 
-    def scan(self, input_text):
+    def tokenize_sentences(self, sentences_input):
+        """Divide sentences string into list of sentences."""
+        tokenizer = TokenizeSentence('latin')
+        return tokenizer.tokenize_sentences(sentences_input)
+
+    def get_sentence_and_prev_final_syllable(self, sentences):
+        """Take a list of sentences and return a list of two sentences, a
+        sentence and its previous if exists."""
+        for counter, sentence in enumerate(sentences):
+            previous_index = counter - 1
+            if previous_index >= 0:
+                previous_sentence = sentences[previous_index]
+                yield [previous_sentence, sentence]
+
+    def scan(self, text_input):
         """Scan text."""
-        process_text = self.syllable_condenser(input_text)
+        sentences = self.tokenize_sentences(text_input)
+        two_sentences_list = self.get_sentence_and_prev_final_syllable(sentences)
+        for two_sentences in two_sentences_list:
+            self.elision_fixer(two_sentences)
+
+        '''
         scanned_text = []
-        for sent in process_text:
+        for sent in text_elided:
             scanned_sent = []
             for syll in sent:
                 if self.long_by_position(syll, sent) or self.long_by_nature(syll):
@@ -273,10 +275,11 @@ class KirbyScanner:
                     scanned_sent.append('˘')
             scanned_text.append(''.join(scanned_sent))
         return scanned_text
+        '''
 
 
 if __name__ == "__main__":
-    text = 'quō usque tandem abūtēre, Catilīna, patientiā nostrā aetatis.'
+    macronized_example = 'unus quō usque tandem abūtēre, Catilīna, patientiā nostrā aetatis. duō quam diū etiam furor iste tuus nōs ēlūdet. trēs usque tandem abūtēre, Catilīna, patientiā nostrā aetatis. quattuor quam diū etiam furor iste tuus nōs ēlūdet. quinque quō usque tandem abūtēre, Catilīna, patientiā nostrā aetatis. sex quam diū etiam furor iste tuus nōs ēlūdet.'
     scanner = KirbyScanner()
-    scanned = scanner.scan(text)
-    print(scanned)
+    scanned = scanner.scan(macronized_example)
+    #print(scanned)
