@@ -288,28 +288,30 @@ def scansion(text):
     return scanned_text
 
 
+def open_file():
+    file_path = input('Enter file path: ')
+    with open(file_path) as file_open:
+        return file_open.read()
+
+
 def main():
     """
     Runs program. Prompts user for a file path to text which they wish to scan.
 
     :return: scansion of chosen text
     """
-
-    file_path = input('Enter file path: ')
-    text_open = open(str(file_path), 'r')
-    text = text_open.read()
-    print(scansion(text))
-    text_open.close()
+    text = open_file()
+    scanned = scansion(text)
+    print(scanned)
 
 
-##############
-#Test Prompts#
-##############
 
 
 if __name__ == "__main__":
     testing = False
-    if testing == True:
+    if not testing:
+        main()
+    else:
         print(clausula_raw(sample_text))
         print(syllable_condenser(sample_text))
         print(scansion(sample_text))
@@ -321,5 +323,3 @@ if __name__ == "__main__":
                     print(str(('POS') + ' ' + str(sent.index(syll))))
                 if long_by_nature(syll):
                     print(str(('NAT') + ' ' + str(sent.index(syll))))
-    else:
-        main()
