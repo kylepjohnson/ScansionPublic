@@ -25,31 +25,38 @@ __license__ = 'MIT License'
 
 
 class Scansion:
-
     def __init__(self):
-        """"""
-        self.punc = '#$%^&*()_+={}[]|:;"\'\/,<>`~'
-        #? Can we change this to a list? I think it's easier to read and should be a little faster
-        #punc = ['#', '$', '%', '^', '&', '*', '(', ')', "'", '_', '+', '=', '{', '}', '[', ']', '|', ':', ';', '"', "'", '/','<', '>', '`', '~']
+        """Setup class variables."""
 
-        # numbers would be better filtered out with a regex (see below)
+        #? Can we change this to a list? I think it's easier to read and should be a little faster
+        self.punctuation = '#$%^&*()_+={}[]|:;"\'\/,<>`~'
+        '''
+        self.punctuation = ['#', '$', '%', '^', '&', '*', '(', ')', "'", '_', '+',
+                       '=', '{', '}', '[', ']', '|', ':', ';', '"', "'", '/',
+                       '<', '>', '`', '~']
+        '''
+        # better filtered out with a regex (see below)
         self.numbers = '1234567890'
 
-        self.abbreviations = ['Agr.', 'Ap.', 'A.', 'K.', 'D.', 'F.', 'C.', 'Cn.',
-                 'L.', 'Mam.', 'M\'', 'M.', 'N.', 'Oct.', 'Opet.', 'Post.', 'Pro.',
-                 'P.', 'Q.', 'Sert.', 'Ser.', 'Sex.', 'S.', 'St.', 'Ti.', 'T.',
-                 'V.', 'Vol.', 'Vop.', 'Pl.']  # This is an exhaustive list of Latin praenomen abbreviations.
+        self.abbreviations = ['Agr.', 'Ap.', 'A.', 'K.', 'D.', 'F.', 'C.',
+                              'Cn.', 'L.', 'Mam.', 'M\'', 'M.', 'N.', 'Oct.',
+                              'Opet.', 'Post.', 'Pro.', 'P.', 'Q.', 'Sert.',
+                              'Ser.', 'Sex.', 'S.', 'St.', 'Ti.', 'T.', 'V.',
+                              'Vol.', 'Vop.', 'Pl.']
         self.vowels = ['a', 'e', 'i', 'o', 'u']
-        self.sing_cons = ['b', 'c', 'd', 'f', 'g', 'j', 'k', 'l', 'm', 'n', 'p', 'q', 'r', 's', 't', 'v', 'w', 'x', 'z']
+        self.sing_cons = ['b', 'c', 'd', 'f', 'g', 'j', 'k', 'l', 'm', 'n',
+                          'p', 'q', 'r', 's', 't', 'v', 'w', 'x', 'z']
         self.doub_cons = ['x', 'z']
         self.long_vowels = ['ā', 'ē', 'ī', 'ō', 'ū']
         self.diphthongs = ['ae', 'au', 'eu', 'ei', 'oe', 'ui', 'uī']
         self.stops = ['t', 'p', 'd', 'k', 'b']
         self.liquids = ['r', 'l']
 
-    def tokenize(self, text):
+    def _tokenize(self, text):
         """
-        Use NLTK's standard tokenizer, rm punctuation
+        Use NLTK's standard tokenizer, rm punctuation.
+
+        Note that previous version was not rm-ing ['trailing,', 'commas']
 
         :param text: pre-processed text
         :return: tokenized text
@@ -65,7 +72,7 @@ class Scansion:
             assert isinstance(words, list)
             words_new = []
             for w in words:
-                if w not in (self.punc or self.abbreviations or self.numbers or self.abbreviations):
+                if w not in (self.punctuation or self.abbreviations or self.numbers or self.abbreviations):
                     words_new.append(w)
 
             # rm all numbers here with: re.compose(r'[09]')
@@ -73,19 +80,194 @@ class Scansion:
 
         return sent_words
 
+    def _qu_fix(self, sents_syllables):
+        """
+        Ensures that 'qu' is not treated as its own syllable.
 
-    def make_syllables(self, sents_words):
+        :param sents_syllables: Sentence of words of syllables.
+        :param syllables: pre-processed
+        :return: syllabified syllables with 'qu' counted as a single consonant
+        :rtype : list
+        """
+
+        for sentence in sents_syllables:
+            for word in sentence:
+                for syllable in word:
+                    if 'qu' in syllable:
+                        qu_syll_index = word.index(syllable)
+                        next_syll = qu_syll_index + 1
+                        fixed_syllable = [''.join(word[qu_syll_index:(next_syll + 1)])]
+                        word[qu_syll_index:(next_syll + 1)] = fixed_syllable
+
+        return sents_syllables
+
+    def _elidable_end(self, word):
+        """Checks word ending to see if it is elidable. Elidable endings include:
+        1) A word ends with 'm'
+        2) A word ends with a vowel
+        3) A word ends with a diphthong
+
+        :param word: syllabified/'qu' fixed word
+        :return: True if the ending of the word is elidable, otherwise False
+        :rtype : bool
+        """
+
+        if str(word[-1]).endswith('m'):
+            return True
+        elif str(word[-1][-1]) in self.long_vowels:
+            return True
+        elif str(word[-1][-1]) in self.vowels:
+            return True
+        elif str(word[-1][-2] + word[-1][-1]) in self.diphthongs:
+            return True
+        else:
+            return False
+
+    def _elidable_begin(self, word):
+        """Checks word beginning to see if it is elidable. Elidable beginnings include:
+        1) A word begins with 'h'
+        2) A word begins with a vowel
+        3) A word begins with a diphthong
+
+        :param word: syllabified/'qu' fixed word
+        :return: True if the beginning of a word is elidable, otherwise False
+        :rtype : bool
+        """
+
+        if str(word[0]).startswith('h'):
+            return True
+        elif str(word[0][0]) in self.long_vowels:
+            return True
+        elif str(word[0][0]) in self.vowels:
+            return True
+        elif str(word[0][0] + word[0][-1]) in self.diphthongs:
+            return True
+        else:
+            return False
+
+    def _elision_fixer(self, sent_syllables):
+        """
+        Elides words by combining the last syllable of a word with the first of the next word if the words elide.
+        E.g. [['quo'], [['us'], ['que']] => [[], ['quous', 'que']]
+
+        :param sent_syllables: A list of sentences of words of syllables
+        :param syllables: syllabified/'qu'fixed syllables
+        :return: elided syllables
+        :rtype : list
+        """
+        for sent in sent_syllables:
+            for word in sent:
+                try:
+                    next_word = sent[sent.index(word) + 1]
+                    if self._elidable_end(word) and self._elidable_begin(next_word):
+                        next_word[0] = str(str(word[-1]) + str(next_word[0]))  # Adds syllable to elided syllable
+                        word.pop(-1)  # Removes redundant syllable
+                    else:
+                        pass
+                except IndexError:
+                    break
+        return sent_syllables
+
+    def _syllable_condenser(self, words_syllables):
+        """Reduces a list of [sentence [word [syllable]]] to [sentence [syllable]].
+
+        :param syllables_words: elided text
+        :return: text tokenized only at the sentence and syllable level
+        """
+
+        sentences_syllables = []
+        for sentence in words_syllables:
+            syllables_sentence = []
+            for word in sentence:
+                syllables_sentence += word
+            sentences_syllables.append(syllables_sentence)
+        return sentences_syllables
+
+    def _long_by_nature(self, syllable):
+        """
+
+        Checks if syllable is long by nature. Long by nature includes:
+        1) Syllable contains a diphthong
+        2) Syllable contains a long vowel
+
+        :param syllable: current syllable
+        :return: True if long by nature
+        :rtype : bool
+        """
+
+        # Find diphthongs
+        vowel_group = ''
+        for char in syllable:
+            if char in self.long_vowels:
+                return True
+            elif char not in self.sing_cons:
+                vowel_group += char
+
+        if vowel_group in self.diphthongs:
+            return True
+
+    def _long_by_position(self, syllable, sentence):
+        """
+
+        Checks if syllable is long by position. Long by position includes:
+        1) Next syllable begins with two consonants, unless those consonants are a stop + liquid combination
+        2) Next syllable begins with a double consonant
+        3) Syllable ends with a consonant and the next syllable begins with a consonant
+
+        :param syllable: Current syllable
+        :param sentence: Current sentence
+        :return: True if syllable is long by position
+        :rtype : bool
+        """
+
+        try:
+            next_syll = sentence[sentence.index(syllable) + 1]
+            # Long by postion by case 1
+            if (next_syll[0] in self.sing_cons and next_syll[1] in self.sing_cons) and \
+                    (next_syll[0] not in self.stops and next_syll[1] not in self.liquids):
+                return True
+            #Long by position by case 2
+            elif syllable[-1] in self.vowels and next_syll[0] in self.doub_cons:
+                return True
+            #Long by position by case 3
+            elif syllable[-1] in self.sing_cons and next_syll[0] in self.sing_cons:
+                return True
+            else:
+                pass
+        except IndexError:
+            pass
+
+    def _scansion(self, sentence_syllables):
+        """Replaces long and short values for each input syllable.
+
+        :param sentence_syllables: A list of strings
+        :return : 'u' and '-' to represent short and long syllables, respectively
+        :rtype : list
+        """
+
+        scanned_text = []
+        for sentence in sentence_syllables:
+            scanned_sent = []
+            for syllable in sentence:
+                if self._long_by_position(syllable, sentence) or self._long_by_nature(syllable):
+                    scanned_sent.append('-')
+                else:
+                    scanned_sent.append('u')
+            scanned_text.append(''.join(scanned_sent))
+        return scanned_text
+
+    def make_syllables(self, sentences_words):
         """
         Divides the word tokens into a list of syllables. Note that a syllable in this instance is defined as a vocalic
         group (i.e., a vowel or a diphthong). This means that all syllables which are not the last syllable in the word
         will end with a vowel or diphthong.
 
-        :param sents_words: pre-processed sents_words
-        :return: syllabified sents_words
+        :param sentences_words: A list of sentences with tokenized words.
+        :return: Syllabified words
+        :rtype : list
         """
-        #sents_words = tokenize(sents_words)
         all_syllables = []
-        for sentence in sents_words:
+        for sentence in sentences_words:
             syll_per_sent = []
             for word in sentence:
                 syll_start = 0  # Begins syllable iterator
@@ -93,10 +275,14 @@ class Scansion:
                 cur_letter_in = 0  # Begins general iterator
                 while cur_letter_in < len(word):
                     letter = word[cur_letter_in]
-                    if (cur_letter_in != len(word) - 1) and (word[cur_letter_in] + word[cur_letter_in + 1]) in self.diphthongs:
-                        cur_letter_in += 1
-                        syll_per_word.append(word[syll_start:cur_letter_in + 1])  # Syllable ends with a diphthong
-                        syll_start = cur_letter_in + 1
+                    if not cur_letter_in == len(word) - 1:
+                        if (word[cur_letter_in] + word[cur_letter_in + 1]) in self.diphthongs:
+                            cur_letter_in += 1
+                            syll_per_word.append(word[syll_start:cur_letter_in + 1])  # Syllable ends with a diphthong
+                            syll_start = cur_letter_in + 1
+                        elif (letter in self.vowels) or (letter in self.long_vowels):
+                            syll_per_word.append(word[syll_start:cur_letter_in + 1])  # Syllable ends with a vowel
+                            syll_start = cur_letter_in + 1
                     elif (letter in self.vowels) or (letter in self.long_vowels):
                         syll_per_word.append(word[syll_start:cur_letter_in + 1])  # Syllable ends with a vowel
                         syll_start = cur_letter_in + 1
@@ -115,195 +301,27 @@ class Scansion:
 
         return all_syllables
 
-
-    def qu_fix(self, sents_syllables):
-        """
-        Ensures that 'qu' is not treated as its own syllable.
-
-        :param syllables: pre-processed
-        :return: syllabified syllables with 'qu' counted as a single consonant
-        """
-
-        for sentence in sents_syllables:
-            for word in sentence:
-                for syllable in word:
-                    if 'qu' in syllable:
-                        qu_syll_index = word.index(syllable)
-                        next_syll = qu_syll_index + 1
-                        fixed_syllable = [''.join(word[qu_syll_index:(next_syll + 1)])]
-                        word[qu_syll_index:(next_syll + 1)] = fixed_syllable
-
-        return sents_syllables
-
-
-    def elidable_end(self, word):
-        """Checks word ending to see if it is elidable. Elidable endings include:
-        1) A word ends with 'm'
-        2) A word ends with a vowel
-        3) A word ends with a diphthong
-
-        :param word: syllabified/'qu' fixed word
-        :return: True if the ending of the word is elidable, otherwise False
-        """
-
-        if str(word[-1]).endswith('m'):
-            return True
-        elif str(word[-1][-1]) in self.long_vowels:
-            return True
-        elif str(word[-1][-1]) in self.vowels:
-            return True
-        elif str(word[-1][-2] + word[-1][-1]) in self.diphthongs:
-            return True
-        else:
-            return False
-
-    def elidable_begin(self, word):
-        """Checks word beginning to see if it is elidable. Elidable beginnings include:
-        1) A word begins with 'h'
-        2) A word begins with a vowel
-        3) A word begins with a diphthong
-
-        :param word: syllabified/'qu' fixed word
-        :return: True if the beginning of a word is elidable, otherwise False
-        """
-
-        if str(word[0]).startswith('h'):
-            return True
-        elif str(word[0][0]) in self.long_vowels:
-            return True
-        elif str(word[0][0]) in self.vowels:
-            return True
-        elif str(word[0][0] + word[0][-1]) in self.diphthongs:
-            return True
-        else:
-            return False
-
-
-    def elision_fixer(self, sent_syllables):
-        """
-        Elides words by combining the last syllable of a word with the first of the next word if the words elide.
-        E.g. [['quo'], [['us'], ['que']] => [[], ['quous', 'que']]
-
-        :param syllables: syllabified/'qu'fixed syllables
-        :return: elided syllables
-        """
-        for sent in sent_syllables:
-            for word in sent:
-                try:
-                    next_word = sent[sent.index(word) + 1]
-                    if self.elidable_end(word) and self.elidable_begin(next_word):
-                        next_word[0] = str(str(word[-1]) + str(next_word[0]))  # Adds syllable to elided syllable
-                        word.pop(-1)  # Removes redundant syllable
-                    else:
-                        pass
-                except IndexError:
-                    break
-        return sent_syllables
-
-
-    def syllable_condenser(self, words_syllables):
-        """Reduces a list of [sentence [word [syllable]]] to [sentence [syllable]].
-
-        :param syllables_words: elided text
-        :return: text tokenized only at the sentence and syllable level
-        """
-
-        sentences_syllables = []
-        for sentence in words_syllables:
-            syllables_sentence = []
-            for word in sentence:
-                syllables_sentence += word
-            sentences_syllables.append(syllables_sentence)
-        return sentences_syllables
-
-
-    def long_by_nature(self, syllable):
-        """
-        Checks if syllable is long by nature. Long by nature includes:
-        1) Syllable contains a diphthong
-        2) Syllable contains a long vowel
-
-        :param syllable: current syllable
-        :return: True if long by nature
-        """
-
-        # Find diphthongs
-        vowel_group = ''
-        for char in syllable:
-            if char in self.long_vowels:
-                return True
-            elif char not in self.sing_cons:
-                vowel_group += char
-
-        if vowel_group in self.diphthongs:
-            return True
-
-
-    def long_by_position(self, syllable, sentence):
-        """
-        Checks if syllable is long by position. Long by position includes:
-        1) Next syllable begins with two consonants, unless those consonants are a stop + liquid combination
-        2) Next syllable begins with a double consonant
-        3) Syllable ends with a consonant and the next syllable begins with a consonant
-
-        :param syllable: current syllable
-        :param sentence: current sentence
-        :return: True if syllable is long by position
-        """
-
-        try:
-            next_syll = sentence[sentence.index(syllable) + 1]
-            #Long by postion by case 1
-            if (next_syll[0] in self.sing_cons and next_syll[1] in self.sing_cons) and \
-                    (next_syll[0] not in self.stops and next_syll[1] not in self.liquids):
-                return True
-            #Long by position by case 2
-            elif syllable[-1] in self.vowels and next_syll[0] in self.doub_cons:
-                return True
-            #Long by position by case 3
-            elif syllable[-1] in self.sing_cons and next_syll[0] in self.sing_cons:
-                return True
-            else:
-                pass
-        except IndexError:
-            pass
-
-
-    def scansion(self, sentence_syllables):
-        """Scan text. A '-' represents a long syllable while a 'u' represents a short syllable.
-
-        :param sentence_syllables: condensed syllabified text
-        :return: scansion of text
-        """
-
-        scanned_text = []
-        for sentence in sentence_syllables:
-            scanned_sent = []
-            for syllable in sentence:
-                if self.long_by_position(syllable, sentence) or self.long_by_nature(syllable):
-                    scanned_sent.append('-')
-                else:
-                    scanned_sent.append('u')
-            scanned_text.append(''.join(scanned_sent))
-        return scanned_text
-
-
     def syllabify(self, unsyllabified_tokens):
         """Helper class for calling syllabification-related methods.
         :param unsyllabified_tokens:
-        :return:
+        :return: List of syllables.
+        :rtype : list
         """
         syllables = self.make_syllables(unsyllabified_tokens)
-        qu_fixed_syllables = self.qu_fix(syllables)
-        elision_fixed_syllables = self.elision_fixer(qu_fixed_syllables)
+        qu_fixed_syllables = self._qu_fix(syllables)
+        elision_fixed_syllables = self._elision_fixer(qu_fixed_syllables)
 
         return elision_fixed_syllables
 
     def scan_text(self, input_string):
-        tokens = self.tokenize(unscanned_text)
+        """The primary method of the class.
+        :param input_string: A string of macronized text.
+        :rtype : list
+        """
+        tokens = self._tokenize(input_string)
         syllables = self.syllabify(tokens)
-        sentence_syllables = self.syllable_condenser(syllables)
-        meter = self.scansion(sentence_syllables)
+        sentence_syllables = self._syllable_condenser(syllables)
+        meter = self._scansion(sentence_syllables)
         return meter
 
 if __name__ == "__main__":
